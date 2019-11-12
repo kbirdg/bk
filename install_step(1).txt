@@ -1,0 +1,131 @@
+1、下载安装包 （wget ）。解压
+yum -y install wget 
+wget http://bkopen-1252002024.file.myqcloud.com/ce/bkce_product-4.1.16.tgz
+wget http://bkopen-1252002024.file.myqcloud.com/ce/bkce_common-1.0.0.tgz
+wget http://bkopen-1252002024.file.myqcloud.com/ce/install_ce-master-1.4.13.tgz
+cd /data
+tar xf bkce_product-4.1.16.tgz
+tar xf bkce_common-1.0.0.tgz
+tar xf install_ce-master-1.4.13.tgz
+tar xf ssl_certificates.tar.gz -C /data/src/cert/
+2.配置yum源  本地源  epel源
+yum -y install epel-release
+/etc/profile http_proxy
+3.解压脚本，申请证书
+http://bk.tencent.com/download/#ssl
+gse,liscense服务器MAC申请，上传至/data
+4.先修改install.config   globals.env 
+globals.env 域名  paas密码  
+export AUTO_GET_WANIP=1
+export GSE_WAN_IP=(1.1.1.1 1.1.1.1)外网IP
+#export NGINX_WAN_IP=(2.2.2.2 2.2.2.2)  
+5.配置免密
+yum -y install rsync
+cd /data/install
+bash configure_ssh_without_pass 
+6.配置时间同步、时区
+for i in `cat install.config|awk '{print $1}'`;do ssh $i timedatectl set-timezone Asia/Shanghai;done
+7.防火墙、selinux配置，NetWorkManger
+for i in `cat install.config|awk '{print $1}'`;do ssh $i systemctl disable firewalld;done
+for i in `cat install.config|awk '{print $1}'`;do ssh $i systemctl stop firewalld;done
+for i in `cat install.config|awk '{print $1}'`;do ssh $i iptables -F;done
+for i in `cat install.config|awk '{print $1}'`;do ssh $i setenforce 0;done
+for i in `cat install.config|awk '{print $1}'`;do ssh $i sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config;done
+echo -e "*  hard  nofile  204800 \n*  soft  nofile  204800" >> /etc/security/limits.conf
+for i in `cat install.config|awk '{print $1}'`;do ssh $i systemctl disable NetworkManager;done
+for i in `cat install.config|awk '{print $1}'`;do ssh $i systemctl stop NetworkManager;done
+for i in `cat install.config|awk '{print $1}'`;do ssh $i yum -y install epel-release;done
+
+8. vim /etc/resolv.conf    首行  nameserver 127.0.0.1  删除option rotate
+
+9.开源组件补全 社区版已补全
+
+10.precheck检查
+
+11.开始安装
+cd /data/install
+./bk_install paas 
+./bk_install cmdb
+./bk_install job
+./bk_install app_mgr 
+./bk_install bkdata
+./bk_install fta
+./bk_install saas-o
+
+11、CPU
+cpu=$(cat <(grep 'cpu ' /proc/stat) <(sleep 1 && grep 'cpu ' /proc/stat) | awk -v RS="" '{print ($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5)}')
+
+
+12、
+从paas/admin中App accounts查看token即secret
+smtp.qq.com 465 true false
+postman账号密码：jeffnomad/XiaoJF@9880316
+
+{
+    "bk_app_code": "bk_nodeman",
+    "bk_app_secret": "xxx",
+    "bk_username": "admin",
+    "receiver": "416766589@qq.com",
+    "sender": "416766589@qq.com",
+    "title": "This is a Test",
+    "content": "<html>Welcome to Blueking</html>",
+}
+
+13、
+配置常用链接，从paas/admin中常用链接，增加常用链接
+
+14、
+常用命令模式
+echo "ulimit -n 204800" >> /etc/profile
+source /etc/profile
+
+for i in `ps -ef | grep ssh | grep -v "grep" | grep -v "sshd -D" | awk '{print $2}'`;do kill -9 $i;done
+
+tar xf /opt/logicsvr.tar.gz -C /opt/
+ipaddr=$(ifconfig | grep -w inet | awk '{print $2}' | head -1)
+sed -i '/address/d' /opt/logicsvr/logicsvr.conf
+echo "address = $ipaddr" >> /opt/logicsvr/logicsvr.conf
+/opt/logicsvr/logicsvr -c /opt/logicsvr/logicsvr.conf
+
+echo "$(date +%Y%m%d-%H%M)" >> /data/logicsvr_monitor.log
+ps -ef | grep logicsvr | grep -v "grep" >> /opt/logicsvr_monitor.log
+if [ `ps -ef | grep logicsvr | grep -v "grep" | wc -l` -gt "1" ];then
+	/opt/logicsvr/logicsvr -c /opt/logicsvr/logicsvr.conf
+fi
+
+
+if [ `ls -l /data/ | wc -l` -eq 0 ];then
+	mkdir /data/
+fi
+
+
+yum remove httpd* php*
+rpm -Uvh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm
+yum -y install nginx
+ipaddr=$(ifconfig | grep -w inet | awk '{print $2}' | head -1)
+sed -i '/server_name/d' /etc/nginx/conf.d/default.conf 
+sed -i '/listen/a\\    server_name '$ipaddr';' /etc/nginx/conf.d/default.conf
+cat /etc/nginx/conf.d/default.conf
+systemctl start nginx.service
+systemctl status nginx.service
+
+14、
+restfu
+curl -d '{"ip": "192.168.163.174","source_id": "157356606701","source_time": "2019-11-12 21:41:07+08:00","alarm_type": "jeff1", "alarm_content": "FAILURE for production HTTP on machine 192.168.163.174", "alarm_context": {"key1":"value1","key2":"value2"}}' 'http://paas.jeff.bk.com:80/api/c/compapi/fta/event/api/c70caf72-f8a7-4ec3-8f72-3c2175508141' -H 'X-Secret:5FgL494XP3RI6ZllU71MvzXnz61LmAr4' -v -k
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
